@@ -1,0 +1,478 @@
+================================================================================
+INBOXPILOT - DRAFT RESPONSE MODULE CODE & CONTENT SUMMARY
+================================================================================
+
+1. backend/package.json
+--------------------------------------------------------------------------------
+{
+  "name": "inboxpilot-backend",
+  "version": "1.0.0",
+  "description": "InboxPilot Backend Service",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "test": "jest"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.21.0",
+    "express": "^4.19.2",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/jest": "^29.5.12",
+    "@types/node": "^20.12.12",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.2",
+    "typescript": "^5.4.5"
+  }
+}
+
+2. backend/tsconfig.json
+--------------------------------------------------------------------------------
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "commonjs",
+    "lib": ["ES2022"],
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "moduleResolution": "node"
+  },
+  "include": ["src/**/*"]
+}
+
+3. backend/jest.config.js
+--------------------------------------------------------------------------------
+module.exports = {
+  preset: "ts-jest",
+  testEnvironment: "node",
+  testMatch: ["**/*.test.ts"],
+};
+
+4. backend/.env.example
+--------------------------------------------------------------------------------
+GEMINI_API_KEY=
+
+5. backend/.gitignore
+--------------------------------------------------------------------------------
+node_modules
+.env
+dist
+
+6. backend/src/types/contracts.ts
+--------------------------------------------------------------------------------
+export interface DraftResult {
+  tone: "formal" | "casual";
+  body: string;
+  requiresApproval: boolean;
+}
+
+export interface RawThread {
+  threadId: string;
+  subject: string;
+  messages: {
+    from: string;
+    body: string;
+    date: string;
+  }[];
+  senderDomain: string;
+}
+
+7. backend/src/agents/draftGenerator.agent.ts
+--------------------------------------------------------------------------------
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import { z } from "zod";
+import { DraftResult, RawThread } from "../types/contracts";
+
+const DraftResultSchema = z.object({
+  tone: z.enum(["formal", "casual"]),
+  body: z.string(),
+  requiresApproval: z.boolean(),
+});
+
+const BACKUP_KEYWORDS = [
+  "legal",
+  "lawsuit",
+  "complaint",
+  "terminate",
+  "layoff",
+  "refund dispute",
+  "breach",
+  "escalate to management",
+];
+
+function checkBackupKeywords(thread: RawThread): boolean {
+  const textToScan = [
+    thread.subject,
+    ...thread.messages.map((m) => `${m.from} ${m.body}`),
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  return BACKUP_KEYWORDS.some((keyword) => textToScan.includes(keyword.toLowerCase()));
+}
+
+export async function generateDraft(
+  thread: RawThread,
+  userDomain: string
+): Promise<DraftResult> {
+  const tone: "formal" | "casual" =
+    thread.senderDomain === userDomain ? "casual" : "formal";
+
+  const isKeywordFlagged = checkBackupKeywords(thread);
+
+  try {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new Error("GEMINI_API_KEY environment variable is not defined");
+    }
+
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({
+      model: "gemini-1.5-flash",
+      generationConfig: {
+        responseMimeType: "application/json",
+      },
+    });
+
+    const threadMessages = thread.messages
+      .map((m) => `From: ${m.from}\nDate: ${m.date}\nBody:\n${m.body}`)
+      .join("\n\n---\n\n");
+
+    const prompt = `You are an AI email assistant drafting a reply for an inbox assistant module.
+Thread Subject: ${thread.subject}
+Desired Tone: ${tone}
+
+Thread Messages:
+${threadMessages}
+
+Instructions for reply generation:
+1. Address every question asked in the thread, not just the first one.
+2. Never fabricate an attachment. If an attachment is referenced or required, insert "⚠️ Remember to attach: [file]" into the draft body text.
+3. Keep the reply to between 3 and 6 sentences.
+4. Do NOT use markdown formatting in the response body.
+5. Return ONLY valid JSON matching this schema:
+{
+  "tone": "${tone}",
+  "body": "string",
+  "requiresApproval": boolean
+}`;
+
+    const result = await model.generateContent(prompt);
+    const text = result.response.text();
+
+    const rawJson = JSON.parse(text);
+    const validated = DraftResultSchema.parse(rawJson);
+
+    return {
+      tone: validated.tone || tone,
+      body: validated.body,
+      requiresApproval: validated.requiresApproval || isKeywordFlagged,
+    };
+  } catch (error) {
+    console.error("Error in draftGenerator agent:", error);
+    return {
+      tone,
+      body: "",
+      requiresApproval: true,
+    };
+  }
+}
+
+8. backend/src/agents/draftGenerator.test.ts
+--------------------------------------------------------------------------------
+import { generateDraft } from "./draftGenerator.agent";
+import { RawThread } from "../types/contracts";
+import { GoogleGenerativeAI } from "@google/generative-ai";
+
+jest.mock("@google/generative-ai");
+
+describe("draftGenerator.agent", () => {
+  const originalEnv = process.env;
+
+  beforeEach(() => {
+    jest.resetModules();
+    process.env = { ...originalEnv, GEMINI_API_KEY: "mock-gemini-key" };
+  });
+
+  afterEach(() => {
+    process.env = originalEnv;
+    jest.restoreAllMocks();
+  });
+
+  it("should set requiresApproval to true when thread contains legal/dispute language", async () => {
+    const mockGenerateContent = jest.fn().mockResolvedValue({
+      response: {
+        text: () =>
+          JSON.stringify({
+            tone: "formal",
+            body: "We have received your email regarding the dispute.",
+            requiresApproval: false,
+          }),
+      },
+    });
+
+    (GoogleGenerativeAI as unknown as jest.Mock).mockImplementation(() => ({
+      getGenerativeModel: jest.fn().mockReturnValue({
+        generateContent: mockGenerateContent,
+      }),
+    }));
+
+    const legalThread: RawThread = {
+      threadId: "thread-legal-01",
+      subject: "Urgent: Breach of contract & lawsuit threat",
+      messages: [
+        {
+          from: "attorney@partner.com",
+          body: "We are considering legal action regarding this refund dispute.",
+          date: "2026-08-08T09:00:00Z",
+        },
+      ],
+      senderDomain: "partner.com",
+    };
+
+    const result = await generateDraft(legalThread, "company.com");
+
+    expect(result.requiresApproval).toBe(true);
+    expect(result.tone).toBe("formal");
+  });
+
+  it("should infer tone as casual when sender domain matches user domain", async () => {
+    const mockGenerateContent = jest.fn().mockResolvedValue({
+      response: {
+        text: () =>
+          JSON.stringify({
+            tone: "casual",
+            body: "Hey, thanks for reaching out! I will check the docs.",
+            requiresApproval: false,
+          }),
+      },
+    });
+
+    (GoogleGenerativeAI as unknown as jest.Mock).mockImplementation(() => ({
+      getGenerativeModel: jest.fn().mockReturnValue({
+        generateContent: mockGenerateContent,
+      }),
+    }));
+
+    const sameDomainThread: RawThread = {
+      threadId: "thread-internal-02",
+      subject: "Team sync today?",
+      messages: [
+        {
+          from: "colleague@company.com",
+          body: "Hey, do you have time to chat about the new sprint goals?",
+          date: "2026-08-08T09:30:00Z",
+        },
+      ],
+      senderDomain: "company.com",
+    };
+
+    const result = await generateDraft(sameDomainThread, "company.com");
+
+    expect(result.tone).toBe("casual");
+    expect(result.requiresApproval).toBe(false);
+  });
+});
+
+9. extension/src/shared/types.ts
+--------------------------------------------------------------------------------
+export interface DraftResult {
+  tone: "formal" | "casual";
+  body: string;
+  requiresApproval: boolean;
+}
+
+export interface ThreadAnalysis {
+  threadId: string;
+  draft: DraftResult;
+}
+
+10. extension/src/sidebar/components/DraftEditor.tsx
+--------------------------------------------------------------------------------
+import React, { useState } from 'react';
+import { ThreadAnalysis } from '../../shared/types';
+
+interface DraftEditorProps {
+  analysis: ThreadAnalysis;
+  onSaveDraft: (threadId: string, body: string) => Promise<void>;
+}
+
+export const DraftEditor: React.FC<DraftEditorProps> = ({ analysis, onSaveDraft }) => {
+  const [body, setBody] = useState<string>(analysis.draft?.body || '');
+  const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
+
+  const isApprovalRequired = analysis.draft?.requiresApproval ?? false;
+  const tone = analysis.draft?.tone || 'formal';
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    setSaveStatus('idle');
+    try {
+      await onSaveDraft(analysis.threadId, body);
+      setSaveStatus('success');
+    } catch (err) {
+      console.error('Failed to save draft:', err);
+      setSaveStatus('error');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <div style={styles.container}>
+      <div style={styles.header}>
+        <h3 style={styles.title}>Draft Response</h3>
+        <span
+          style={{
+            ...styles.badge,
+            backgroundColor: tone === 'casual' ? '#e0f2fe' : '#f3e8ff',
+            color: tone === 'casual' ? '#0369a1' : '#6b21a8',
+            borderColor: tone === 'casual' ? '#bae6fd' : '#e9d5ff',
+          }}
+        >
+          {tone}
+        </span>
+      </div>
+
+      {isApprovalRequired && (
+        <div style={styles.warningBanner}>
+          <span style={{ marginRight: '8px', fontSize: '16px' }}>⚠️</span>
+          <div>
+            <strong>Approval Required:</strong> Sensitive, legal, or dispute content detected. Please review carefully before saving.
+          </div>
+        </div>
+      )}
+
+      <div style={styles.editorGroup}>
+        <textarea
+          style={styles.textarea}
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          placeholder="Edit draft response..."
+          rows={6}
+        />
+      </div>
+
+      <div style={styles.footer}>
+        <button
+          style={{
+            ...styles.button,
+            opacity: isSaving ? 0.7 : 1,
+            cursor: isSaving ? 'not-allowed' : 'pointer',
+          }}
+          onClick={handleSave}
+          disabled={isSaving}
+        >
+          {isSaving ? 'Saving Draft...' : 'Save as Gmail Draft'}
+        </button>
+
+        {saveStatus === 'success' && (
+          <span style={styles.successText}>Draft saved to Gmail!</span>
+        )}
+        {saveStatus === 'error' && (
+          <span style={styles.errorText}>Failed to save draft. Try again.</span>
+        )}
+
+        <p style={styles.safetyNote}>
+          ℹ️ Note: This action only saves a draft in Gmail and will never send automatically.
+        </p>
+      </div>
+    </div>
+  );
+};
+
+const styles: { [key: string]: React.CSSProperties } = {
+  container: {
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    padding: '16px',
+    borderRadius: '8px',
+    backgroundColor: '#ffffff',
+    border: '1px solid #e5e7eb',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+  },
+  header: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '12px',
+  },
+  title: {
+    margin: 0,
+    fontSize: '16px',
+    fontWeight: 600,
+    color: '#111827',
+  },
+  badge: {
+    fontSize: '11px',
+    fontWeight: 700,
+    padding: '2px 8px',
+    borderRadius: '12px',
+    border: '1px solid',
+    textTransform: 'uppercase',
+    letterSpacing: '0.5px',
+  },
+  warningBanner: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    backgroundColor: '#fffbebf0',
+    border: '1px solid #fef08a',
+    borderRadius: '6px',
+    padding: '10px 12px',
+    marginBottom: '12px',
+    color: '#92400e',
+    fontSize: '13px',
+    lineHeight: '1.4',
+  },
+  editorGroup: {
+    marginBottom: '12px',
+  },
+  textarea: {
+    width: '100%',
+    boxSizing: 'border-box',
+    padding: '10px',
+    fontSize: '14px',
+    lineHeight: '1.5',
+    color: '#1f2937',
+    borderRadius: '6px',
+    border: '1px solid #d1d5db',
+    resize: 'vertical',
+    outline: 'none',
+  },
+  footer: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px',
+  },
+  button: {
+    backgroundColor: '#2563eb',
+    color: '#ffffff',
+    border: 'none',
+    borderRadius: '6px',
+    padding: '10px 16px',
+    fontSize: '14px',
+    fontWeight: 600,
+  },
+  successText: {
+    fontSize: '12px',
+    color: '#16a34a',
+    fontWeight: 500,
+  },
+  errorText: {
+    fontSize: '12px',
+    color: '#dc2626',
+    fontWeight: 500,
+  },
+  safetyNote: {
+    margin: 0,
+    fontSize: '11px',
+    color: '#6b7280',
+    lineHeight: '1.3',
+  },
+};
