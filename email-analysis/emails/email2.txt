@@ -1,0 +1,12 @@
+From: teammate@company.com
+To: kishore@example.com
+Subject: Update Dashboard
+
+Hi Kishore,
+
+Please update the sales dashboard with the latest monthly data.
+
+Once you finish, let me know so I can review the changes.
+
+Thanks,
+Teammate

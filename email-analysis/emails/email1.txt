@@ -1,0 +1,12 @@
+From: manager@company.com
+To: kishore@example.com
+Subject: Urgent Project Report
+
+Hi Kishore,
+
+Please prepare the project report and send it to the client by Friday.
+
+This is important because we have a client meeting on Monday.
+
+Thanks,
+Manager

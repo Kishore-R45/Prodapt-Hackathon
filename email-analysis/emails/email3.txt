@@ -1,0 +1,15 @@
+From: newsletter@company.com
+To: kishore@example.com
+Subject: Monthly Company Newsletter
+
+Hi Kishore,
+
+The company newsletter for August is now available.
+
+This month's newsletter includes updates about recent company events,
+employee achievements, and upcoming activities.
+
+No action is required.
+
+Regards,
+Company Communications

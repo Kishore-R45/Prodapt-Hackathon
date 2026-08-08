@@ -1,0 +1,18 @@
+From: project.manager@company.com
+To: kishore@example.com
+Subject: Project Deliverables
+
+Hi Kishore,
+
+There are several things that need to be completed for the project.
+
+Please finish the API documentation by August 15.
+
+The database migration report should be prepared by August 18.
+
+Also send the final project status report to the client by August 20.
+
+These deadlines are important because the project review is scheduled for August 22.
+
+Thanks,
+Project Manager

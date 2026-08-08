@@ -1,0 +1,14 @@
+From: hr@company.com
+To: kishore@example.com
+Subject: Team Meeting
+
+Hi Kishore,
+
+The monthly team meeting is scheduled for August 14 at 10:00 AM.
+
+Please join the meeting on time.
+
+The meeting will cover project updates and upcoming activities.
+
+Regards,
+HR
