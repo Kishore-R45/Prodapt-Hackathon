@@ -26,13 +26,13 @@
     "gmailThreadId": "gm-thread-002",
     "messages": [
       {
-        "id": "m3",
-        "from": "no-reply@buildci.io",
-        "to": ["you@yourcompany.com"],
-        "date": "2026-08-07T02:30:00Z",
-        "subject": "Build #4821 succeeded",
-        "body": "Your build for branch main completed successfully in 3m12s."
-      }
+  "id": "m3",
+  "from": "alex@yourcompany.com",
+  "to": ["sarah@yourcompany.com"],
+  "date": "2026-08-08T10:00:00Z",
+  "subject": "Quick sync this week?",
+  "body": "Dear Sarah,\n\nI hope you are having a productive week. I would like to schedule a brief, 15-minute meeting to discuss our upcoming strategy for Project X. I want to ensure we align on the deliverables before the end of the quarter.\n\nAre you available for a quick sync this Thursday at 2:00 PM? If not, please let me know a time that works best for you.\n\nThank you,\nAlex"
+}
     ]
   },
   {

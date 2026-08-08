@@ -1,32 +1,9 @@
-import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
+import "dotenv/config";
 
-const apiKey = process.env.GEMINI_API_KEY;
+const apiKey = process.env.GROQ_API_KEY;
 if (!apiKey) {
-  // Fail loud at import time in dev — better than a confusing 500 mid-demo.
-  console.warn("[gemini.client] GEMINI_API_KEY is not set. Set it in backend/.env");
+  console.warn("[gemini.client] GROQ_API_KEY is not set. Set it in backend/.env");
 }
-
-const genAI = new GoogleGenerativeAI(apiKey ?? "");
-
-const summarySchema = {
-  type: SchemaType.OBJECT,
-  properties: {
-    bullets: {
-      type: SchemaType.ARRAY,
-      items: { type: SchemaType.STRING },
-      description: "3 to 5 bullet points capturing decisions, commitments, and open questions.",
-    },
-  },
-  required: ["bullets"],
-};
-
-const model = genAI.getGenerativeModel({
-  model: "gemini-2.0-flash",
-  generationConfig: {
-    responseMimeType: "application/json",
-    responseSchema: summarySchema as any,
-  },
-});
 
 const SYSTEM_INSTRUCTION = `You are an email thread summarizer inside an inbox assistant.
 Summarize the given email thread into 3 to 5 concise bullet points.
@@ -34,23 +11,39 @@ Focus on decisions made, commitments given ("I will...", "we agreed to..."),
 and open questions still needing an answer. Do NOT just restate what was said —
 extract what actually matters for someone who has not read the thread.
 Never invent a commitment that was not explicitly stated or clearly implied.
-Return ONLY the JSON schema requested, nothing else.`;
+Respond ONLY with valid JSON in this exact shape, nothing else:
+{"bullets": ["point 1", "point 2", "point 3"]}`;
 
 /**
- * Calls Gemini Flash with structured output mode and returns the raw bullet list.
- * Throws on API failure — caller (summarizer.agent.ts) decides fallback behavior.
+ * Calls Groq's OpenAI-compatible chat completions endpoint and returns the bullet list.
+ * Same function name/signature as before so summarizer.agent.ts doesn't need to change.
  */
 export async function summarizeWithGemini(threadText: string): Promise<string[]> {
-  const result = await model.generateContent({
-    contents: [
-      {
-        role: "user",
-        parts: [{ text: `${SYSTEM_INSTRUCTION}\n\n---\n\nEMAIL THREAD:\n${threadText}` }],
-      },
-    ],
+  const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: "llama-3.1-8b-instant",
+      messages: [
+        { role: "system", content: SYSTEM_INSTRUCTION },
+        { role: "user", content: `EMAIL THREAD:\n${threadText}` },
+      ],
+      response_format: { type: "json_object" },
+      temperature: 0.3,
+    }),
   });
 
-  const raw = result.response.text();
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`Groq API error (${response.status}): ${errText}`);
+  }
+
+  const data = await response.json();
+  const raw = data.choices?.[0]?.message?.content ?? "";
+
   try {
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed.bullets)) {
@@ -58,6 +51,6 @@ export async function summarizeWithGemini(threadText: string): Promise<string[]>
     }
     return parsed.bullets.slice(0, 5);
   } catch (err) {
-    throw new Error(`Failed to parse Gemini response as structured JSON: ${raw}`);
+    throw new Error(`Failed to parse Groq response as structured JSON: ${raw}`);
   }
 }
