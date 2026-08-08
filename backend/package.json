@@ -1,0 +1,19 @@
+{
+  "name": "inboxpilot-backend-priority",
+  "version": "1.0.0",
+  "description": "InboxPilot backend - priority classifier agent module (feature/priority-triage)",
+  "main": "dist/index.js",
+  "scripts": {
+    "test:priority": "ts-node src/test-priority.ts",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.21.0",
+    "dotenv": "^16.6.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.5.4"
+  }
+}

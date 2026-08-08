@@ -1,0 +1,113 @@
+{
+  "userEmail": "you@yourcompany.com",
+  "existingTasks": [
+    {
+      "id": "task-1",
+      "description": "Submit revised proposal to Client A",
+      "deadline": "2026-08-10T17:00:00Z",
+      "relatedParty": "clienta.com"
+    }
+  ],
+  "threads": [
+    {
+      "threadId": "urgent-1",
+      "gmailThreadId": "gm-1",
+      "userEmail": "you@yourcompany.com",
+      "messages": [
+        {
+          "id": "m1",
+          "from": "ceo@clientco.com",
+          "to": ["you@yourcompany.com"],
+          "date": "2026-08-08T08:00:00Z",
+          "subject": "Production is down",
+          "body": "We need this fixed today, this is affecting our entire customer base. Please escalate immediately and call me."
+        }
+      ]
+    },
+    {
+      "threadId": "fake-urgent-marketing",
+      "gmailThreadId": "gm-2",
+      "userEmail": "you@yourcompany.com",
+      "messages": [
+        {
+          "id": "m2",
+          "from": "promotions@somestore.com",
+          "to": ["you@yourcompany.com"],
+          "date": "2026-08-08T07:00:00Z",
+          "subject": "URGENT: Sale ends today!!",
+          "body": "Don't miss out — 50% off ends tonight! Act now before it's gone.",
+          "listUnsubscribe": "<mailto:unsub@somestore.com>"
+        }
+      ]
+    },
+    {
+      "threadId": "system-ci",
+      "gmailThreadId": "gm-3",
+      "userEmail": "you@yourcompany.com",
+      "messages": [
+        {
+          "id": "m3",
+          "from": "no-reply@buildci.io",
+          "to": ["you@yourcompany.com"],
+          "date": "2026-08-08T02:30:00Z",
+          "subject": "Build #4821 succeeded",
+          "body": "Your build completed successfully."
+        }
+      ]
+    },
+    {
+      "threadId": "cc-only",
+      "gmailThreadId": "gm-4",
+      "userEmail": "you@yourcompany.com",
+      "messages": [
+        {
+          "id": "m4",
+          "from": "teammate@yourcompany.com",
+          "to": ["lead@yourcompany.com"],
+          "cc": ["you@yourcompany.com"],
+          "date": "2026-08-08T09:00:00Z",
+          "subject": "FYI - status update",
+          "body": "Just looping you in, no action needed on your end."
+        }
+      ]
+    },
+    {
+      "threadId": "vip-trivial",
+      "gmailThreadId": "gm-5",
+      "userEmail": "you@yourcompany.com",
+      "senderHistory": { "avgReplyTimeHours": 1.5, "isActiveProjectSender": true },
+      "messages": [
+        {
+          "id": "m5",
+          "from": "boss@yourcompany.com",
+          "to": ["you@yourcompany.com"],
+          "date": "2026-08-08T10:00:00Z",
+          "subject": "lunch tmrw?",
+          "body": "hey, free for lunch tomorrow?"
+        }
+      ]
+    },
+    {
+      "threadId": "conflict-1",
+      "gmailThreadId": "gm-6",
+      "userEmail": "you@yourcompany.com",
+      "messages": [
+        {
+          "id": "m6",
+          "from": "sam@clientb.com",
+          "to": ["you@yourcompany.com"],
+          "date": "2026-08-08T11:00:00Z",
+          "subject": "Need the report by the 10th",
+          "body": "Can you get the analysis report to us by end of day on August 10th? We have a board meeting right after."
+        }
+      ],
+      "newTasksInThread": [
+        {
+          "description": "Send analysis report to Client B",
+          "deadline": "2026-08-10T17:00:00Z",
+          "relatedParty": "clientb.com"
+        }
+      ]
+    }
+  ]
+}
