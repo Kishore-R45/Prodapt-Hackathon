@@ -58,6 +58,7 @@ const DEMO_THREADS: RawThread[] = [
 ];
 
 chrome.runtime.onMessage.addListener((request: BackgroundRequest, _sender: chrome.runtime.MessageSender, sendResponse: (response: BackgroundResponse) => void) => {
+  log(`Received request ${request.type}`);
   void handleRequest(request)
     .then((response) => sendResponse(response))
     .catch((error: Error) => sendResponse({ ok: false, error: error.message }));
@@ -67,16 +68,20 @@ chrome.runtime.onMessage.addListener((request: BackgroundRequest, _sender: chrom
 async function handleRequest(request: BackgroundRequest): Promise<BackgroundResponse> {
   switch (request.type) {
     case "GET_SESSION":
+      log("Returning stored session");
       return { ok: true, data: await getSession() };
     case "AUTHENTICATE":
       return { ok: true, data: await authorizeAndSync() };
     case "REFRESH_INBOX":
       return { ok: true, data: await refreshInbox() };
     case "LOAD_DEMO":
+      log("Loading demo inbox on explicit request");
       return { ok: true, data: await syncWithThreads(DEMO_THREADS, "demo") };
     case "MARK_TASK_DONE":
+      log("Mark task done requested", { threadId: request.payload.threadId, taskId: request.payload.taskId });
       return { ok: true, data: await markTaskDone(request.payload.threadId, request.payload.taskId) };
     case "OPEN_THREAD":
+      log("Opening Gmail thread", { threadId: request.payload.threadId });
       await chrome.tabs.create({ url: `https://mail.google.com/mail/u/0/#inbox/${request.payload.threadId}` });
       return { ok: true };
     default:
@@ -86,6 +91,7 @@ async function handleRequest(request: BackgroundRequest): Promise<BackgroundResp
 
 async function authorizeAndSync(): Promise<AnalyzeInboxResponse> {
   assertValidOAuthClientId();
+  log("Starting OAuth authorization");
   const token = await withTimeout(getAuthToken(true), 20000, "Google OAuth authorization timed out. Check that the extension OAuth client ID matches the extension ID registered in Google Cloud Console.");
   const profile = await getProfileInfo();
   const session: InboxSession = {
@@ -98,6 +104,11 @@ async function authorizeAndSync(): Promise<AnalyzeInboxResponse> {
     source: "live"
   };
 
+  log("OAuth completed", {
+    email: session.email,
+    hasToken: Boolean(session.token)
+  });
+
   await saveSession(session);
   return refreshInbox(session);
 }
@@ -109,15 +120,22 @@ async function refreshInbox(existingSession?: InboxSession): Promise<AnalyzeInbo
   }
 
   try {
+    log("Fetching unread Gmail threads", { email: session.email });
     const threads = await fetchUnreadThreads(session.token);
+    log("Fetched unread threads", { threadCount: threads.length });
     return syncWithThreads(threads, "live", session);
-  } catch (_error) {
-    const demoSession = { ...session, source: "demo" as const };
-    return syncWithThreads(DEMO_THREADS, "demo", demoSession);
+  } catch (error) {
+    logError("Failed to fetch live Gmail threads", error);
+    throw new Error(error instanceof Error ? error.message : "Unable to fetch live Gmail threads");
   }
 }
 
 async function syncWithThreads(threads: RawThread[], source: "live" | "demo", sessionOverride?: InboxSession): Promise<AnalyzeInboxResponse> {
+  log("Syncing threads into analysis pipeline", {
+    source,
+    threadCount: threads.length
+  });
+
   const response = await analyzeThreads(threads);
   const session = sessionOverride ?? (await getSession());
   const updatedSession: InboxSession = {
@@ -138,7 +156,7 @@ async function syncWithThreads(threads: RawThread[], source: "live" | "demo", se
 async function markTaskDone(threadId: string, taskId: string): Promise<{ threadId: string; taskId: string; unreadCleared: boolean }> {
   const session = await getSession();
   if (session.token) {
-    await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/threads/${threadId}/modify`, {
+    const response = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/threads/${threadId}/modify`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${session.token}`,
@@ -146,6 +164,13 @@ async function markTaskDone(threadId: string, taskId: string): Promise<{ threadI
       },
       body: JSON.stringify({ removeLabelIds: ["UNREAD"] })
     });
+
+    if (!response.ok) {
+      const body = await response.text();
+      throw new Error(`Failed to update Gmail thread ${threadId}: ${response.status} ${response.statusText} ${body}`);
+    }
+
+    log("Marked Gmail thread as read", { threadId });
   }
 
   return { threadId, taskId, unreadCleared: true };
@@ -320,30 +345,41 @@ async function getProfileInfo(): Promise<{ email?: string }> {
 }
 
 async function fetchUnreadThreads(token: string): Promise<RawThread[]> {
-  const response = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/threads?labelIds=UNREAD&maxResults=12&q=is%3Aunread", {
-    headers: { Authorization: `Bearer ${token}` }
-  });
-
-  if (!response.ok) {
-    throw new Error(`Gmail thread list failed: ${response.status}`);
-  }
-
-  const body = (await response.json()) as { threads?: { id: string }[] };
-  const threads = body.threads ?? [];
-  const detailedThreads = await Promise.all(threads.map((entry) => fetchThread(token, entry.id)));
+  const threadIds = await fetchAllUnreadThreadIds(token);
+  const detailedThreads = await Promise.all(threadIds.map((entry) => fetchThread(token, entry)));
   return detailedThreads.filter((thread): thread is RawThread => Boolean(thread));
 }
 
+async function fetchAllUnreadThreadIds(token: string): Promise<string[]> {
+  const threadIds: string[] = [];
+  let pageToken: string | undefined;
+
+  do {
+    const path = new URLSearchParams({
+      labelIds: "UNREAD",
+      maxResults: "20",
+      q: "is:unread"
+    });
+
+    if (pageToken) {
+      path.set("pageToken", pageToken);
+    }
+
+    const body = await requestGmailJson<{ threads?: { id: string }[]; nextPageToken?: string }>(
+      token,
+      `users/me/threads?${path.toString()}`
+    );
+
+    const threads = body.threads ?? [];
+    threadIds.push(...threads.map((entry) => entry.id).filter(Boolean));
+    pageToken = body.nextPageToken;
+  } while (pageToken);
+
+  return threadIds;
+}
+
 async function fetchThread(token: string, threadId: string): Promise<RawThread | null> {
-  const response = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/threads/${threadId}?format=full`, {
-    headers: { Authorization: `Bearer ${token}` }
-  });
-
-  if (!response.ok) {
-    return null;
-  }
-
-  const thread = await response.json();
+  const thread = await requestGmailJson<{ messages?: any[]; snippet?: string; labelIds?: string[] }>(token, `users/me/threads/${threadId}?format=full`);
   const messages = (thread.messages ?? []).map((message: any) => ({
     id: message.id,
     sender: headerValue(message.payload?.headers, "From") ?? "Unknown sender",
@@ -358,10 +394,28 @@ async function fetchThread(token: string, threadId: string): Promise<RawThread |
     subject: firstMessage?.subject ?? thread.snippet ?? "InboxPilot thread",
     from: firstMessage?.sender ?? "Unknown sender",
     snippet: thread.snippet ?? firstMessage?.body.slice(0, 120) ?? "",
-    unread: true,
+    unread: Boolean(thread.labelIds?.includes("UNREAD") ?? true),
     date: firstMessage?.date ?? new Date().toISOString(),
     messages
   };
+}
+
+async function requestGmailJson<T>(token: string, path: string): Promise<T> {
+  const url = `https://gmail.googleapis.com/gmail/v1/${path}`;
+  const response = await fetch(url, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+
+  const rawBody = await response.text();
+  if (!response.ok) {
+    throw new Error(`Gmail API ${response.status} ${response.statusText} for ${path}: ${rawBody || "<empty response>"}`);
+  }
+
+  try {
+    return (rawBody ? JSON.parse(rawBody) : {}) as T;
+  } catch (error) {
+    throw new Error(`Failed to parse Gmail API response for ${path}: ${error instanceof Error ? error.message : String(error)}`);
+  }
 }
 
 function headerValue(headers: any[] | undefined, key: string): string | undefined {
