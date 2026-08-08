@@ -1,0 +1,53 @@
+[
+  {
+    "threadId": "demo-thread-1",
+    "subject": "Client escalation: revised timeline for landing page rollout",
+    "from": "Avery Chen <avery@northstar.io>",
+    "snippet": "We need the updated landing page assets by Friday EOD so we can launch on Monday.",
+    "unread": true,
+    "date": "2026-08-08T09:20:00.000Z",
+    "messages": [
+      {
+        "id": "msg-1",
+        "sender": "Avery Chen <avery@northstar.io>",
+        "subject": "Client escalation: revised timeline for landing page rollout",
+        "body": "Hi team, we need the updated landing page assets by Friday EOD so we can launch on Monday. Please send the final copy and hero artwork before 4 PM.",
+        "date": "2026-08-08T09:20:00.000Z"
+      }
+    ]
+  },
+  {
+    "threadId": "demo-thread-2",
+    "subject": "Quick sync next week?",
+    "from": "Jordan Lee <jordan@prodapt.com>",
+    "snippet": "Would you be free Tuesday or Wednesday for a short review of the proposal?",
+    "unread": true,
+    "date": "2026-08-07T16:10:00.000Z",
+    "messages": [
+      {
+        "id": "msg-2",
+        "sender": "Jordan Lee <jordan@prodapt.com>",
+        "subject": "Quick sync next week?",
+        "body": "Would you be free Tuesday or Wednesday for a short review of the proposal? Also, please share any blockers before then.",
+        "date": "2026-08-07T16:10:00.000Z"
+      }
+    ]
+  },
+  {
+    "threadId": "demo-thread-3",
+    "subject": "Invoice and deliverable mismatch",
+    "from": "Finance Team <finance@northstar.io>",
+    "snippet": "The invoice mentions scope A, but the latest deliverable references scope B.",
+    "unread": true,
+    "date": "2026-08-06T11:30:00.000Z",
+    "messages": [
+      {
+        "id": "msg-3",
+        "sender": "Finance Team <finance@northstar.io>",
+        "subject": "Invoice and deliverable mismatch",
+        "body": "The invoice mentions scope A, but the latest deliverable references scope B. Please confirm which timeline should be used and whether we should pause billing until the conflict is resolved.",
+        "date": "2026-08-06T11:30:00.000Z"
+      }
+    ]
+  }
+]

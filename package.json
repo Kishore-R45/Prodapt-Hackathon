@@ -1,0 +1,14 @@
+{
+  "name": "inboxpilot",
+  "private": true,
+  "workspaces": [
+    "extension",
+    "backend"
+  ],
+  "scripts": {
+    "dev:extension": "npm run dev --workspace extension",
+    "build:extension": "npm run build --workspace extension",
+    "dev:backend": "npm run dev --workspace backend",
+    "build:backend": "npm run build --workspace backend"
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "manifest_version": 3,
+  "name": "InboxPilot",
+  "version": "0.1.0",
+  "description": "AI inbox assistant for Gmail with OAuth, triage, tasks, calendar, and drafts.",
+  "action": {
+    "default_title": "InboxPilot",
+    "default_popup": "popup.html"
+  },
+  "permissions": ["identity", "storage", "tabs"],
+  "host_permissions": [
+    "https://mail.google.com/*",
+    "https://gmail.googleapis.com/*",
+    "http://localhost:8787/*"
+  ],
+  "oauth2": {
+    "client_id": "1037516577482-16nni5470fmi58rqv4fpqclvs2mc4fhp.apps.googleusercontent.com",
+    "scopes": [
+      "https://www.googleapis.com/auth/gmail.readonly",
+      "https://www.googleapis.com/auth/gmail.modify",
+      "https://www.googleapis.com/auth/gmail.compose",
+      "https://www.googleapis.com/auth/calendar.events"
+    ]
+  },
+  "background": {
+    "service_worker": "assets/background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://mail.google.com/*"],
+      "js": ["assets/content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["sidebar.html", "popup.html", "assets/*"],
+      "matches": ["https://mail.google.com/*"]
+    }
+  ]
+}
