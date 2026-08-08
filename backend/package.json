@@ -1,0 +1,19 @@
+{
+  "name": "inboxpilot-backend",
+  "version": "1.0.0",
+  "description": "InboxPilot backend - summarizer agent module (feature/summarizer)",
+  "main": "dist/index.js",
+  "scripts": {
+    "test:summarizer": "ts-node src/test-summarizer.ts",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.21.0",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4",
+    "ts-node": "^10.9.2",
+    "@types/node": "^20.14.0"
+  }
+}

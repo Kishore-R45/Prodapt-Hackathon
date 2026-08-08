@@ -1,0 +1,53 @@
+[
+  {
+    "threadId": "t1",
+    "gmailThreadId": "gm-thread-001",
+    "messages": [
+      {
+        "id": "m1",
+        "from": "priya@clientco.com",
+        "to": ["you@yourcompany.com"],
+        "date": "2026-08-06T09:15:00Z",
+        "subject": "Contract renewal terms",
+        "body": "Hi, following up on the renewal. We'd like to lock in the same pricing for another year, but need the updated SLA doc by Friday. Can you also confirm if the 24/7 support tier is included?\n\nThanks,\nPriya"
+      },
+      {
+        "id": "m2",
+        "from": "you@yourcompany.com",
+        "to": ["priya@clientco.com"],
+        "date": "2026-08-06T14:02:00Z",
+        "subject": "Re: Contract renewal terms",
+        "body": "Hi Priya, yes 24/7 support is included at the current tier. I'll get the SLA doc over by Friday.\n\nOn Aug 6, 2026, Priya wrote:\n> Hi, following up on the renewal...\n\nBest,\nAlex\n--\nAlex Kumar | Account Manager"
+      }
+    ]
+  },
+  {
+    "threadId": "t2",
+    "gmailThreadId": "gm-thread-002",
+    "messages": [
+      {
+        "id": "m3",
+        "from": "no-reply@buildci.io",
+        "to": ["you@yourcompany.com"],
+        "date": "2026-08-07T02:30:00Z",
+        "subject": "Build #4821 succeeded",
+        "body": "Your build for branch main completed successfully in 3m12s."
+      }
+    ]
+  },
+  {
+    "threadId": "t3",
+    "gmailThreadId": "gm-thread-003",
+    "messages": [
+      {
+        "id": "m4",
+        "from": "sam@partner.io",
+        "to": ["you@yourcompany.com"],
+        "date": "2026-08-05T11:00:00Z",
+        "subject": "Design assets",
+        "body": "Attached the final logo files as requested."
+      }
+    ],
+    "hasAttachmentsOnly": true
+  }
+]
